@@ -1,9 +1,9 @@
-import os
-import re
-import matplotlib.pyplot as plt
-import json
-import numpy as np
-from openai import OpenAI
+from openai import OpenAI # openai api calls 
+import os # get the api stored in the environment
+import re # need regex to extract answers from the test cases / model responses
+import matplotlib.pyplot as plt # to plot results 
+import json # for loading test data from JSON files
+import numpy as np # for faster maths or fast results
 
 # Set up OpenAI API key
 api_key = os.getenv("OPENAI_API_KEY")
@@ -164,22 +164,48 @@ def ask_gpt_and_check_answers(test_data, use_custom_system_message, reasoning_ty
 
 # Function to plot comparison results
 def plot_comparison(symbolic_results, normal_results):
-    min_length = min(len(symbolic_results), len(normal_results))
-    symbolic_results = symbolic_results[:min_length]
-    normal_results = normal_results[:min_length]
 
+    # Check if the results lists are not empty
+    if not symbolic_results:
+        print("Error: symbolic_results list is empty.")
+        return
+    if not normal_results:
+        print("Error: normal_results list is empty.")
+        return
+
+    # Ensure both lists have the same length
+    num_questions = len(symbolic_results)
+    if len(normal_results) != num_questions:
+        print("Error: symbolic_results and normal_results lists have different lengths.")
+        return
+
+    question_indices = list(range(1, num_questions + 1))
+
+    # Convert results to numpy arrays for easier manipulation
+    symbolic_results = np.array(symbolic_results, dtype=float)
+    normal_results = np.array(normal_results, dtype=float)
+
+    # Add small offsets to avoid overlapping when results are the same
+    offset = 0.02  # Adjust as needed
+    symbolic_offsets = np.full(num_questions, offset)
+    normal_offsets = np.full(num_questions, -offset)
+
+    # Plot the results
     plt.figure(figsize=(10, 6))
-    question_indices = list(range(1, min_length + 1))
-
-    plt.scatter(question_indices, symbolic_results, 
+    plt.scatter(question_indices, symbolic_results + symbolic_offsets, 
                 color='green', marker='o', label='Symbolic Reasoning', alpha=0.7)
-    plt.scatter(question_indices, normal_results, 
-                color='blue', marker='x', label='Normal', alpha=0.7)
+    plt.scatter(question_indices, normal_results + normal_offsets, 
+                color='blue', marker='x', label='Normal Reasoning', alpha=0.7)
+
+    # Set y-axis limits
+    plt.ylim(-0.1, 1.1)
+    plt.yticks([0, 1], ['Incorrect (0)', 'Correct (1)'])
 
     plt.xlabel('Question Number')
-    plt.ylabel('Result (0 = Incorrect, 1 = Correct)')
+    plt.ylabel('Result')
     plt.title('Comparison of Symbolic vs Normal Reasoning')
-    plt.legend(loc='upper right')
+
+    plt.legend()
     plt.grid(True, linestyle='--', alpha=0.5)
     plt.tight_layout()
     plt.show()
