@@ -127,20 +127,26 @@ def ask_gpt_and_check_answers(test_data, use_custom_system_message, reasoning_ty
     system_message = {
         "role": "system",
         "content": (
-            "Solve this question strictly using symbolic reasoning and provide the final answer enclosed in LaTeX \\boxed{{}} notation."
+            "You are a mathematical assistant specialized in symbolic reasoning. Solve the following problem using algebraic manipulations and provide the final answer enclosed in LaTeX \\boxed{{}} notation."
             if use_custom_system_message
-            else "Answer the following question based on the problem and give the final answer enclosed in LaTeX \\boxed{{}} notation."
+            else "Answer the following question using any appropriate method, and provide the final answer enclosed in LaTeX \\boxed{{}} notation."
+
         )
     }
 
     messages = [system_message, {"role": "user", "content": prompt}]
+
+    if use_custom_system_message:
+        max_tokens = 2000 # needs more tokens
+    else:
+        max_tokens = 1000
 
     try:
         # Use the client's chat.completions.create() method
         response = client.chat.completions.create(
             model="gpt-4o-mini",  # Use the model you have access to
             messages=messages,
-            max_tokens=750,  # Increase to prevent truncation
+            max_tokens=max_tokens,  # Increase to prevent truncation
             temperature=0.0  # Deterministic output
         )
 
@@ -212,8 +218,8 @@ def plot_comparison(symbolic_results, normal_results):
 
 # Main function to load data, process questions, and compare results
 def main():
-    folder_path = "test-algebra"
-    file_names = ["1.json"]
+    folder_path = "test-probability"
+    file_names = ["4.json","6.json"]
 
     symbolic_results, normal_results = [], []
     symbolic_correct = symbolic_total = normal_correct = normal_total = 0
