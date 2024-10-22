@@ -220,7 +220,7 @@ def plot_comparison(symbolic_results, normal_results):
 
 # Main function to load data, process questions, and compare results
 def main():
-    folder_path = "test-probability"
+    folder_path = os.path.join("..", "tests", "test-probability")
     file_names = ["41.json"] # add test files as needed
 
     symbolic_results, normal_results = [], []
