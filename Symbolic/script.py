@@ -221,20 +221,7 @@ def plot_comparison(symbolic_results, normal_results):
 # Main function to load data, process questions, and compare results
 def main():
     folder_path = "test-probability"
-    file_names = [
-    '30.json', '36.json', '38.json', '41.json', '47.json', '48.json', '50.json',
-    '51.json', '53.json', '54.json', '56.json', '57.json', '61.json', '63.json',
-    '64.json', '65.json', '66.json', '68.json', '71.json', '74.json', '78.json',
-    '79.json', '80.json', '84.json', '86.json', '93.json', '95.json', '100.json',
-    '102.json', '103.json', '105.json', '106.json', '107.json', '109.json',
-    '110.json', '115.json', '116.json', '119.json', '123.json', '124.json',
-    '128.json', '130.json', '132.json', '134.json', '136.json', '137.json',
-    '139.json', '140.json', '148.json', '150.json', '151.json', '152.json',
-    '155.json', '156.json', '158.json', '159.json', '162.json', '164.json',
-    '166.json', '170.json', '172.json', '173.json', '175.json', '176.json',
-    '181.json', '182.json', '184.json', '185.json', '188.json', '190.json',
-    '193.json', '195.json', '199.json', '203.json', '205.json', '206.json', '207.json'
-    ] # add test files as needed
+    file_names = ["41.json"] # add test files as needed
 
     symbolic_results, normal_results = [], []
     symbolic_correct = symbolic_total = normal_correct = normal_total = 0
