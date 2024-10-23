@@ -9,6 +9,9 @@ import numpy as np
 api_key = os.getenv("OPENAI_API_KEY")
 client = openai.OpenAI(api_key=api_key)
 
+# Log file path
+log_file_path = "output.txt"
+
 # Function to load N-shot examples from text file with a forgiving encoding
 def load_n_shot_content(file_path):
     try:
@@ -27,7 +30,7 @@ def load_test_data(file_path):
         print(f"Error loading {file_path}: {e}")
         return None
 
-# Extract answers from the test cases ie .json files
+# Extract answers from the test cases
 def extract_answer(text: str):
     pattern = r'\\boxed\{((?:\\frac\{[^}]+\}\{[^}]+\}|\d+))\}'
     match = re.search(pattern, text)
@@ -59,49 +62,16 @@ def extract_answer(text: str):
     print(f"Warning: Could not extract a valid answer from text: {text}")
     return "INVALID", None
 
-# Extract answers from model responses for API calls
-def extract_answer_api(text: str):
-    pattern = r'\\boxed\{((?:\\frac\{[^}]+\}\{[^}]+\}|(?:\d+)(?:\.\d+)?))\}'
-    match = re.search(pattern, text)
-    
-    if match:
-        content = match.group(1)
-        if content.startswith('\\frac'):
-            frac_pattern = r'\\frac\{([^}]+)\}\{([^}]+)\}'
-            frac_match = re.search(frac_pattern, content)
-            if frac_match:
-                numerator = frac_match.group(1)
-                denominator = frac_match.group(2)
-                try:
-                    decimal = float(numerator) / float(denominator)
-                    return f"{numerator}/{denominator}", decimal
-                except ValueError:
-                    return content, None
-        else:
-            try:
-                number = float(content)
-                return content, number
-            except ValueError:
-                return content, None
-    else:
-        match = re.search(r"(\d+(\.\d+)?)", text)
-        if match:
-            number = float(match.group(1))
-            return str(number), number
-    print(f"Warning: Could not extract a valid answer from model response: {text}")
-    return "INVALID", None
-
-# Log model responses and results to output.txt
-def log_to_file(file_name, question_number, model_response, extracted_answer, correct_answer, reasoning_type):
-    with open("output.txt", "a") as log_file:
-        log_file.write("=" * 60 + "\n")
-        log_file.write(f"File: {file_name}, Question: {question_number}, Reasoning: {reasoning_type}\n")
+# Function to log responses to a file
+def log_to_file(file_name, reasoning_type, problem, model_response, correct_answer, extracted_answer, result):
+    with open(log_file_path, "a") as log_file:
+        log_file.write(f"File: {file_name}, Reasoning Type: {reasoning_type}\n")
+        log_file.write(f"Problem: {problem}\n")
         log_file.write(f"Model Response: {model_response}\n")
-        log_file.write(f"Extracted Answer: {extracted_answer}\n")
         log_file.write(f"Correct Answer: {correct_answer}\n")
-        is_correct = extracted_answer == correct_answer
-        log_file.write(f"Correct: {'Yes' if is_correct else 'No'}\n")
-        log_file.write("-" * 50 + "\n")
+        log_file.write(f"Extracted Answer: {extracted_answer}\n")
+        log_file.write(f"Result: {'Correct' if result else 'Incorrect'}\n")
+        log_file.write("="*60 + "\n")
 
 # Function to ask GPT, extract answers, and check correctness
 def ask_gpt_and_check_answers(test_data, use_nshot_learning, reasoning_type, file_name, n_shot_content=None):
@@ -128,7 +98,7 @@ def ask_gpt_and_check_answers(test_data, use_nshot_learning, reasoning_type, fil
     }
 
     messages = [system_message, {"role": "user", "content": prompt}]
-    max_tokens = 2000 if use_nshot_learning else 1000
+    max_tokens = 1000 if use_nshot_learning else 500
 
     try:
         response = client.chat.completions.create(
@@ -139,20 +109,55 @@ def ask_gpt_and_check_answers(test_data, use_nshot_learning, reasoning_type, fil
         )
 
         model_response = response.choices[0].message.content.strip()
-        extracted_answer, extracted_decimal = extract_answer_api(model_response)
+        extracted_answer, extracted_decimal = extract_answer(model_response)
         model_answer = extracted_decimal if extracted_decimal is not None else extracted_answer
 
         is_correct = model_answer == correct_answer
         result = int(is_correct)
 
-        # Log the result
-        log_to_file(file_name, 1, model_response, model_answer, correct_answer, reasoning_type)
+        # Log model response, extracted answer, and correctness to the file
+        log_to_file(file_name, reasoning_type, problem, model_response, correct_answer, model_answer, result)
 
         return result, 1, [result]
 
     except Exception as e:
-        log_to_file(file_name, 1, f"Error: {e}", "INVALID", correct_answer, reasoning_type)
+        log_to_file(file_name, reasoning_type, problem, f"Error: {e}", correct_answer, "INVALID", False)
         return 0, 1, [0]
+
+# Function to process questions with normal reasoning first, then with N-shot
+def process_all_questions(file_names, folder_path, n_shot_content):
+    nshot_results, normal_results = [], []
+    nshot_correct = nshot_total = normal_correct = normal_total = 0
+
+    # Process each question with both Normal and N-shot reasoning
+    for file_name in file_names:
+        file_path = os.path.join(folder_path, file_name)
+        test_data = load_test_data(file_path)
+
+        if test_data:
+            # Run with normal reasoning
+            norm_corr, norm_total_q, norm_res = ask_gpt_and_check_answers(
+                test_data, False, "Normal", file_name
+            )
+            normal_correct += norm_corr
+            normal_total += norm_total_q
+            normal_results.extend(norm_res)
+
+            # Run with N-shot learning, using the shared N-shot content
+            nshot_corr, nshot_total_q, nshot_res = ask_gpt_and_check_answers(
+                test_data, True, "N-shot Learning", file_name, n_shot_content
+            )
+            nshot_correct += nshot_corr
+            nshot_total += nshot_total_q
+            nshot_results.extend(nshot_res)
+
+    nshot_accuracy = (nshot_correct / nshot_total) * 100 if nshot_total else 0
+    normal_accuracy = (normal_correct / normal_total) * 100 if normal_total else 0
+
+    print(f"N-shot Learning Accuracy: {nshot_accuracy:.2f}%")
+    print(f"Normal Reasoning Accuracy: {normal_accuracy:.2f}%")
+
+    plot_comparison(nshot_results, normal_results)
 
 # Function to plot comparison results
 def plot_comparison(nshot_results, normal_results):
@@ -196,46 +201,22 @@ def plot_comparison(nshot_results, normal_results):
 # Main function to load data, process questions, and compare results
 def main():
     folder_path = os.path.join("..", "tests", "test-probability")
-    file_names = ["54.json"]
+    file_names = [
+        "1081.json", "1082.json", "1083.json", "1084.json", "1087.json", "1088.json",
+        "1092.json", "1093.json", "1095.json", "1096.json", "1098.json", "1102.json",
+        "1103.json", "1107.json", "1108.json", "1112.json"
+    ]
 
     n_shot_file_path = "Prob-Nshot.txt"  # Path to the N-shot learning file
     n_shot_content = load_n_shot_content(n_shot_file_path)
 
-    nshot_results, normal_results = [], []
-    nshot_correct = nshot_total = normal_correct = normal_total = 0
-
-    with open("output.txt", "w") as log_file:
+    # Create a fresh log file for this run
+    with open(log_file_path, "w") as log_file:
         log_file.write("GPT-4 Model Responses and Extracted Answers\n")
         log_file.write("=" * 60 + "\n")
 
-    for file_name in file_names:
-        file_path = os.path.join(folder_path, file_name)
-        test_data = load_test_data(file_path)
-
-        if test_data:
-            # Run with N-shot learning
-            nshot_corr, nshot_total_q, nshot_res = ask_gpt_and_check_answers(
-                test_data, True, "N-shot Learning", file_name, n_shot_content
-            )
-            nshot_correct += nshot_corr
-            nshot_total += nshot_total_q
-            nshot_results.extend(nshot_res)
-
-            # Run with normal reasoning
-            norm_corr, norm_total_q, norm_res = ask_gpt_and_check_answers(
-                test_data, False, "Normal", file_name
-            )
-            normal_correct += norm_corr
-            normal_total += norm_total_q
-            normal_results.extend(norm_res)
-
-    nshot_accuracy = (nshot_correct / nshot_total) * 100 if nshot_total else 0
-    normal_accuracy = (normal_correct / normal_total) * 100 if normal_total else 0
-
-    print(f"N-shot Learning Accuracy: {nshot_accuracy:.2f}%")
-    print(f"Normal Reasoning Accuracy: {normal_accuracy:.2f}%")
-
-    plot_comparison(nshot_results, normal_results)
+    # Process questions with normal and N-shot reasoning
+    process_all_questions(file_names, folder_path, n_shot_content)
 
 if __name__ == "__main__":
     main()
