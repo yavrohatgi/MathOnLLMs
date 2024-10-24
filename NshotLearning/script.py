@@ -124,6 +124,74 @@ def ask_gpt_and_check_answers(test_data, use_nshot_learning, reasoning_type, fil
         log_to_file(file_name, reasoning_type, problem, f"Error: {e}", correct_answer, "INVALID", False)
         return 0, 1, [0]
 
+# Function to plot the original scatter plot comparison
+def plot_scatter_comparison(nshot_results, normal_results):
+    if not nshot_results:
+        print("Error: nshot_results list is empty.")
+        return
+    if not normal_results:
+        print("Error: normal_results list is empty.")
+        return
+
+    num_questions = len(nshot_results)
+    if len(normal_results) != num_questions:
+        print("Error: nshot_results and normal_results lists have different lengths.")
+        return
+
+    question_indices = list(range(1, num_questions + 1))
+    nshot_results = np.array(nshot_results, dtype=float)
+    normal_results = np.array(normal_results, dtype=float)
+    offset = 0.02
+    nshot_offsets = np.full(num_questions, offset)
+    normal_offsets = np.full(num_questions, -offset)
+
+    plt.figure(figsize=(10, 6))
+    plt.scatter(question_indices, nshot_results + nshot_offsets, 
+                color='green', marker='o', label='N-shot Learning', alpha=0.7)
+    plt.scatter(question_indices, normal_results + normal_offsets, 
+                color='blue', marker='x', label='Normal Reasoning', alpha=0.7)
+
+    plt.ylim(-0.1, 1.1)
+    plt.yticks([0, 1], ['Incorrect (0)', 'Correct (1)'])
+    plt.xticks(question_indices)
+    plt.xlim(0.5, num_questions + 0.5)
+    plt.xlabel('Question Number')
+    plt.ylabel('Result')
+    plt.title('Comparison of N-shot Learning vs Normal Reasoning (Scatter Plot)')
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.5)
+    plt.tight_layout()
+    plt.show()
+
+# Function to plot the moving average comparison
+def plot_moving_average_comparison(nshot_results, normal_results, window_size=5):
+    if not nshot_results or not normal_results:
+        print("Error: Results list is empty.")
+        return
+
+    num_questions = len(nshot_results)
+    question_indices = list(range(1, num_questions + 1))
+
+    # Calculate moving averages
+    nshot_moving_avg = np.convolve(nshot_results, np.ones(window_size) / window_size, mode='valid')
+    normal_moving_avg = np.convolve(normal_results, np.ones(window_size) / window_size, mode='valid')
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(question_indices[:len(nshot_moving_avg)], nshot_moving_avg, 
+             label=f'N-shot Learning (Moving Avg, window={window_size})', color='green', linestyle='-', marker='o', alpha=0.7)
+    plt.plot(question_indices[:len(normal_moving_avg)], normal_moving_avg, 
+             label=f'Normal Reasoning (Moving Avg, window={window_size})', color='blue', linestyle='-', marker='x', alpha=0.7)
+
+    plt.ylim(0, 1)
+    plt.xlim(1, num_questions)
+    plt.xlabel('Question Number')
+    plt.ylabel('Moving Average Accuracy')
+    plt.title(f'Accuracy Comparison of N-shot Learning vs Normal Reasoning (Moving Avg, window={window_size})')
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.5)
+    plt.tight_layout()
+    plt.show()
+
 # Function to process questions with normal reasoning first, then with N-shot
 def process_all_questions(file_names, folder_path, n_shot_content):
     nshot_results, normal_results = [], []
@@ -157,46 +225,9 @@ def process_all_questions(file_names, folder_path, n_shot_content):
     print(f"N-shot Learning Accuracy: {nshot_accuracy:.2f}%")
     print(f"Normal Reasoning Accuracy: {normal_accuracy:.2f}%")
 
-    plot_comparison(nshot_results, normal_results)
-
-# Function to plot comparison results
-def plot_comparison(nshot_results, normal_results):
-    if not nshot_results:
-        print("Error: nshot_results list is empty.")
-        return
-    if not normal_results:
-        print("Error: normal_results list is empty.")
-        return
-
-    num_questions = len(nshot_results)
-    if len(normal_results) != num_questions:
-        print("Error: nshot_results and normal_results lists have different lengths.")
-        return
-
-    question_indices = list(range(1, num_questions + 1))
-    nshot_results = np.array(nshot_results, dtype=float)
-    normal_results = np.array(normal_results, dtype=float)
-    offset = 0.02
-    nshot_offsets = np.full(num_questions, offset)
-    normal_offsets = np.full(num_questions, -offset)
-
-    plt.figure(figsize=(10, 6))
-    plt.scatter(question_indices, nshot_results + nshot_offsets, 
-                color='green', marker='o', label='N-shot Learning', alpha=0.7)
-    plt.scatter(question_indices, normal_results + normal_offsets, 
-                color='blue', marker='x', label='Normal Reasoning', alpha=0.7)
-
-    plt.ylim(-0.1, 1.1)
-    plt.yticks([0, 1], ['Incorrect (0)', 'Correct (1)'])
-    plt.xticks(question_indices)
-    plt.xlim(0.5, num_questions + 0.5)
-    plt.xlabel('Question Number')
-    plt.ylabel('Result')
-    plt.title('Comparison of N-shot Learning vs Normal Reasoning')
-    plt.legend()
-    plt.grid(True, linestyle='--', alpha=0.5)
-    plt.tight_layout()
-    plt.show()
+    # Plot both scatter and moving average comparisons
+    plot_scatter_comparison(nshot_results, normal_results)    # Scatter plot
+    plot_moving_average_comparison(nshot_results, normal_results, window_size=5)  # Moving average plot
 
 # Main function to load data, process questions, and compare results
 def main():
@@ -216,7 +247,6 @@ def main():
     "2831.json", "2838.json", "25963.json", "25975.json", "25995.json", 
     "25999.json", "26016.json"
     ]
-
 
     n_shot_file_path = "Algebra-Nshot.txt"  # Path to the N-shot learning file
     n_shot_content = load_n_shot_content(n_shot_file_path)
