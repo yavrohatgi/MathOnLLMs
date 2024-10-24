@@ -200,14 +200,25 @@ def plot_comparison(nshot_results, normal_results):
 
 # Main function to load data, process questions, and compare results
 def main():
-    folder_path = os.path.join("..", "tests", "test-probability")
+    folder_path = os.path.join("..", "tests", "test-algebra")
     file_names = [
-        "1081.json", "1082.json", "1083.json", "1084.json", "1087.json", "1088.json",
-        "1092.json", "1093.json", "1095.json", "1096.json", "1098.json", "1102.json",
-        "1103.json", "1107.json", "1108.json", "1112.json"
+    "2696.json", "2700.json", "2701.json", "2702.json", "2706.json", 
+    "2708.json", "2710.json", "2711.json", "2712.json", "2714.json", 
+    "2715.json", "2719.json", "2720.json", "2723.json", "2728.json", 
+    "2731.json", "2732.json", "2735.json", "2736.json", "2738.json", 
+    "2740.json", "2741.json", "2742.json", "2743.json", "2744.json", 
+    "2745.json", "2748.json", "2753.json", "2755.json", "2756.json", 
+    "2759.json", "2762.json", "2768.json", "2772.json", "2779.json", 
+    "2780.json", "2783.json", "2784.json", "2787.json", "2788.json", 
+    "2789.json", "2792.json", "2796.json", "2798.json", "2804.json", 
+    "2805.json", "2807.json", "2810.json", "2814.json", "2815.json", 
+    "2817.json", "2818.json", "2822.json", "2823.json", "2827.json", 
+    "2831.json", "2838.json", "25963.json", "25975.json", "25995.json", 
+    "25999.json", "26016.json"
     ]
 
-    n_shot_file_path = "Prob-Nshot.txt"  # Path to the N-shot learning file
+
+    n_shot_file_path = "Algebra-Nshot.txt"  # Path to the N-shot learning file
     n_shot_content = load_n_shot_content(n_shot_file_path)
 
     # Create a fresh log file for this run
