@@ -98,7 +98,7 @@ def ask_gpt_and_check_answers(test_data, use_nshot_learning, reasoning_type, fil
     }
 
     messages = [system_message, {"role": "user", "content": prompt}]
-    max_tokens = 1000 if use_nshot_learning else 500
+    max_tokens = 700 if use_nshot_learning else 350
 
     try:
         response = client.chat.completions.create(
@@ -126,35 +126,18 @@ def ask_gpt_and_check_answers(test_data, use_nshot_learning, reasoning_type, fil
 
 # Function to plot the original scatter plot comparison
 def plot_scatter_comparison(nshot_results, normal_results):
-    if not nshot_results:
-        print("Error: nshot_results list is empty.")
-        return
-    if not normal_results:
-        print("Error: normal_results list is empty.")
-        return
-
     num_questions = len(nshot_results)
-    if len(normal_results) != num_questions:
-        print("Error: nshot_results and normal_results lists have different lengths.")
-        return
-
-    question_indices = list(range(1, num_questions + 1))
-    nshot_results = np.array(nshot_results, dtype=float)
-    normal_results = np.array(normal_results, dtype=float)
-    offset = 0.02
-    nshot_offsets = np.full(num_questions, offset)
-    normal_offsets = np.full(num_questions, -offset)
-
+    question_indices = np.arange(1, num_questions + 1)
+    
+    # Plot scatter
     plt.figure(figsize=(10, 6))
-    plt.scatter(question_indices, nshot_results + nshot_offsets, 
+    plt.scatter(question_indices, nshot_results, 
                 color='green', marker='o', label='N-shot Learning', alpha=0.7)
-    plt.scatter(question_indices, normal_results + normal_offsets, 
+    plt.scatter(question_indices, normal_results, 
                 color='blue', marker='x', label='Normal Reasoning', alpha=0.7)
 
     plt.ylim(-0.1, 1.1)
     plt.yticks([0, 1], ['Incorrect (0)', 'Correct (1)'])
-    plt.xticks(question_indices)
-    plt.xlim(0.5, num_questions + 0.5)
     plt.xlabel('Question Number')
     plt.ylabel('Result')
     plt.title('Comparison of N-shot Learning vs Normal Reasoning (Scatter Plot)')
@@ -165,12 +148,8 @@ def plot_scatter_comparison(nshot_results, normal_results):
 
 # Function to plot the moving average comparison
 def plot_moving_average_comparison(nshot_results, normal_results, window_size=5):
-    if not nshot_results or not normal_results:
-        print("Error: Results list is empty.")
-        return
-
     num_questions = len(nshot_results)
-    question_indices = list(range(1, num_questions + 1))
+    question_indices = np.arange(1, num_questions + 1)
 
     # Calculate moving averages
     nshot_moving_avg = np.convolve(nshot_results, np.ones(window_size) / window_size, mode='valid')
@@ -189,6 +168,33 @@ def plot_moving_average_comparison(nshot_results, normal_results, window_size=5)
     plt.title(f'Accuracy Comparison of N-shot Learning vs Normal Reasoning (Moving Avg, window={window_size})')
     plt.legend()
     plt.grid(True, linestyle='--', alpha=0.5)
+    plt.tight_layout()
+    plt.show()
+
+# Function to plot cumulative accuracy
+def plot_cumulative_accuracy(nshot_results, normal_results):
+    num_questions = len(nshot_results)
+    question_indices = np.arange(1, num_questions + 1)
+
+    # Calculate cumulative sums for correct answers
+    nshot_cumulative_accuracy = np.cumsum(nshot_results) / question_indices
+    normal_cumulative_accuracy = np.cumsum(normal_results) / question_indices
+
+    # Plotting the cumulative accuracy
+    plt.figure(figsize=(10, 6))
+    plt.plot(question_indices, nshot_cumulative_accuracy, 
+             label='N-shot Learning (Cumulative Accuracy)', color='green', linestyle='-', linewidth=3)
+    plt.plot(question_indices, normal_cumulative_accuracy, 
+             label='Normal Reasoning (Cumulative Accuracy)', color='blue', linestyle='-', linewidth=3)
+
+    # Adjust labels and limits
+    plt.ylim(0, 1)
+    plt.xlim(1, num_questions)
+    plt.xlabel('Question Number')
+    plt.ylabel('Cumulative Accuracy')
+    plt.title('Cumulative Accuracy of N-shot Learning vs Normal Reasoning')
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.6)
     plt.tight_layout()
     plt.show()
 
@@ -219,34 +225,34 @@ def process_all_questions(file_names, folder_path, n_shot_content):
             nshot_total += nshot_total_q
             nshot_results.extend(nshot_res)
 
+    # Calculate and print accuracy
     nshot_accuracy = (nshot_correct / nshot_total) * 100 if nshot_total else 0
     normal_accuracy = (normal_correct / normal_total) * 100 if normal_total else 0
 
     print(f"N-shot Learning Accuracy: {nshot_accuracy:.2f}%")
     print(f"Normal Reasoning Accuracy: {normal_accuracy:.2f}%")
 
-    # Plot both scatter and moving average comparisons
-    plot_scatter_comparison(nshot_results, normal_results)    # Scatter plot
-    plot_moving_average_comparison(nshot_results, normal_results, window_size=5)  # Moving average plot
+    # Plot the results: scatter plot, moving average, and cumulative accuracy
+    plot_scatter_comparison(nshot_results, normal_results)
+    plot_moving_average_comparison(nshot_results, normal_results, window_size=5)
+    plot_cumulative_accuracy(nshot_results, normal_results)
+
+def find_files(directory,limit=1000):
+    file_names = []
+
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            if len(file_names) >= limit:
+                return file_names
+            file_names.append(file)
+
+    return file_names
+
 
 # Main function to load data, process questions, and compare results
 def main():
     folder_path = os.path.join("..", "tests", "test-algebra")
-    file_names = [
-    "2696.json", "2700.json", "2701.json", "2702.json", "2706.json", 
-    "2708.json", "2710.json", "2711.json", "2712.json", "2714.json", 
-    "2715.json", "2719.json", "2720.json", "2723.json", "2728.json", 
-    "2731.json", "2732.json", "2735.json", "2736.json", "2738.json", 
-    "2740.json", "2741.json", "2742.json", "2743.json", "2744.json", 
-    "2745.json", "2748.json", "2753.json", "2755.json", "2756.json", 
-    "2759.json", "2762.json", "2768.json", "2772.json", "2779.json", 
-    "2780.json", "2783.json", "2784.json", "2787.json", "2788.json", 
-    "2789.json", "2792.json", "2796.json", "2798.json", "2804.json", 
-    "2805.json", "2807.json", "2810.json", "2814.json", "2815.json", 
-    "2817.json", "2818.json", "2822.json", "2823.json", "2827.json", 
-    "2831.json", "2838.json", "25963.json", "25975.json", "25995.json", 
-    "25999.json", "26016.json"
-    ]
+    file_names = find_files(folder_path)
 
     n_shot_file_path = "Algebra-Nshot.txt"  # Path to the N-shot learning file
     n_shot_content = load_n_shot_content(n_shot_file_path)
