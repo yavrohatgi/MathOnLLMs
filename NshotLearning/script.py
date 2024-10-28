@@ -1,3 +1,4 @@
+# Set up OpenAI API key
 import os
 import openai
 import re
@@ -30,37 +31,84 @@ def load_test_data(file_path):
         print(f"Error loading {file_path}: {e}")
         return None
 
-# Extract answers from the test cases
-def extract_answer(text: str):
-    pattern = r'\\boxed\{((?:\\frac\{[^}]+\}\{[^}]+\}|\d+))\}'
-    match = re.search(pattern, text)
-    
-    if match:
-        content = match.group(1)
-        if content.startswith('\\frac'):
-            frac_pattern = r'\\frac\{([^}]+)\}\{([^}]+)\}'
-            frac_match = re.search(frac_pattern, content)
-            if frac_match:
-                numerator = frac_match.group(1)
-                denominator = frac_match.group(2)
-                try:
-                    decimal = float(numerator) / float(denominator)
-                    return f"{numerator}/{denominator}", decimal
-                except ValueError:
-                    return content, None
-        else:
-            try:
-                number = float(content)
-                return content, number
-            except ValueError:
-                return content, None
-    else:
-        match = re.search(r"(\d+(\.\d+)?)", text)
+def extract_answer_from_solution(solution_text: str):
+    """
+    Extracts the correct answer from the solution text in the JSON file.
+    Handles nested braces in \boxed{...}.
+    Returns the answer as a string.
+    """
+    # Find the position of '\boxed{'
+    start_index = solution_text.find('\\boxed{')
+    if start_index == -1:
+        # If no \boxed{} found, try to extract the last numerical value
+        match = re.findall(r"(\d+(\.\d+)?)", solution_text)
         if match:
-            number = float(match.group(1))
-            return str(number), number
-    print(f"Warning: Could not extract a valid answer from text: {text}")
-    return "INVALID", None
+            answer = match[-1][0]
+            return answer.strip()
+        print("Warning: Could not extract a valid answer from solution text.")
+        return "INVALID"
+    else:
+        # Start scanning from start_index + len('\\boxed{')
+        index = start_index + len('\\boxed{')
+        brace_count = 1
+        answer = ''
+        while index < len(solution_text) and brace_count > 0:
+            char = solution_text[index]
+            if char == '{':
+                brace_count += 1
+            elif char == '}':
+                brace_count -= 1
+            if brace_count > 0:
+                answer += char
+            index += 1
+        return answer.strip()
+
+def extract_answer_from_response(response_text: str):
+    """
+    Extracts the answer from the OpenAI response text.
+    Handles nested braces in \boxed{...}.
+    Returns the answer as a string.
+    """
+    # Find the position of '\boxed{'
+    start_index = response_text.find('\\boxed{')
+    if start_index == -1:
+        # If no \boxed{} found, try to extract the last numerical value
+        match = re.findall(r"(\d+(\.\d+)?)", response_text)
+        if match:
+            answer = match[-1][0]
+            return answer.strip()
+        print("Warning: Could not extract a valid answer from model response.")
+        return "INVALID"
+    else:
+        # Start scanning from start_index + len('\\boxed{')
+        index = start_index + len('\\boxed{')
+        brace_count = 1
+        answer = ''
+        while index < len(response_text) and brace_count > 0:
+            char = response_text[index]
+            if char == '{':
+                brace_count += 1
+            elif char == '}':
+                brace_count -= 1
+            if brace_count > 0:
+                answer += char
+            index += 1
+        return answer.strip()
+
+# Function to convert an answer string to a numerical value if possible
+def answer_to_float(answer_str):
+    try:
+        if answer_str.startswith('\\frac'):
+            frac_pattern = r'\\frac\{([^}]+)\}\{([^}]+)\}'
+            frac_match = re.search(frac_pattern, answer_str)
+            if frac_match:
+                numerator = float(frac_match.group(1))
+                denominator = float(frac_match.group(2))
+                return numerator / denominator
+        else:
+            return float(eval(answer_str))
+    except:
+        return None
 
 # Function to log responses to a file
 def log_to_file(file_name, reasoning_type, problem, model_response, correct_answer, extracted_answer, result):
@@ -79,8 +127,7 @@ def ask_gpt_and_check_answers(test_data, use_nshot_learning, reasoning_type, fil
     solution = test_data.get("solution", "No solution found")
 
     # Extract the correct answer from the solution
-    correct_extracted, correct_decimal = extract_answer(solution)
-    correct_answer = correct_decimal if correct_decimal is not None else correct_extracted
+    correct_answer = extract_answer_from_solution(solution)
 
     # Prepare the prompt, adding N-shot examples only for N-shot learning
     if use_nshot_learning:
@@ -98,7 +145,7 @@ def ask_gpt_and_check_answers(test_data, use_nshot_learning, reasoning_type, fil
     }
 
     messages = [system_message, {"role": "user", "content": prompt}]
-    max_tokens = 700 if use_nshot_learning else 350
+    max_tokens = 700 if use_nshot_learning else 500
 
     try:
         response = client.chat.completions.create(
@@ -109,42 +156,30 @@ def ask_gpt_and_check_answers(test_data, use_nshot_learning, reasoning_type, fil
         )
 
         model_response = response.choices[0].message.content.strip()
-        extracted_answer, extracted_decimal = extract_answer(model_response)
-        model_answer = extracted_decimal if extracted_decimal is not None else extracted_answer
+        extracted_answer = extract_answer_from_response(model_response)
 
-        is_correct = model_answer == correct_answer
+        # Convert answers to numerical values if possible
+        correct_value = answer_to_float(correct_answer)
+        extracted_value = answer_to_float(extracted_answer)
+
+        # Compare answers
+        if correct_value is not None and extracted_value is not None:
+            # Compare numerical values with a tolerance
+            is_correct = abs(correct_value - extracted_value) < 1e-6
+        else:
+            # Compare the strings directly
+            is_correct = extracted_answer == correct_answer
+
         result = int(is_correct)
 
         # Log model response, extracted answer, and correctness to the file
-        log_to_file(file_name, reasoning_type, problem, model_response, correct_answer, model_answer, result)
+        log_to_file(file_name, reasoning_type, problem, model_response, correct_answer, extracted_answer, result)
 
         return result, 1, [result]
 
     except Exception as e:
         log_to_file(file_name, reasoning_type, problem, f"Error: {e}", correct_answer, "INVALID", False)
         return 0, 1, [0]
-
-# Function to plot the original scatter plot comparison
-def plot_scatter_comparison(nshot_results, normal_results):
-    num_questions = len(nshot_results)
-    question_indices = np.arange(1, num_questions + 1)
-    
-    # Plot scatter
-    plt.figure(figsize=(10, 6))
-    plt.scatter(question_indices, nshot_results, 
-                color='green', marker='o', label='N-shot Learning', alpha=0.7)
-    plt.scatter(question_indices, normal_results, 
-                color='blue', marker='x', label='Normal Reasoning', alpha=0.7)
-
-    plt.ylim(-0.1, 1.1)
-    plt.yticks([0, 1], ['Incorrect (0)', 'Correct (1)'])
-    plt.xlabel('Question Number')
-    plt.ylabel('Result')
-    plt.title('Comparison of N-shot Learning vs Normal Reasoning (Scatter Plot)')
-    plt.legend()
-    plt.grid(True, linestyle='--', alpha=0.5)
-    plt.tight_layout()
-    plt.show()
 
 # Function to plot the moving average comparison
 def plot_moving_average_comparison(nshot_results, normal_results, window_size=5):
@@ -232,12 +267,11 @@ def process_all_questions(file_names, folder_path, n_shot_content):
     print(f"N-shot Learning Accuracy: {nshot_accuracy:.2f}%")
     print(f"Normal Reasoning Accuracy: {normal_accuracy:.2f}%")
 
-    # Plot the results: scatter plot, moving average, and cumulative accuracy
-    plot_scatter_comparison(nshot_results, normal_results)
+    # Plot
     plot_moving_average_comparison(nshot_results, normal_results, window_size=5)
     plot_cumulative_accuracy(nshot_results, normal_results)
 
-def find_files(directory,limit=1000):
+def find_files(directory, limit=1000):
     file_names = []
 
     for root, dirs, files in os.walk(directory):
@@ -248,10 +282,10 @@ def find_files(directory,limit=1000):
 
     return file_names
 
-
 # Main function to load data, process questions, and compare results
 def main():
     folder_path = os.path.join("..", "tests", "test-algebra")
+    # Set the limit on the number of files to process
     file_names = find_files(folder_path)
 
     n_shot_file_path = "Algebra-Nshot.txt"  # Path to the N-shot learning file
