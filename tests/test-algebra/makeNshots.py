@@ -7,8 +7,13 @@ def savequestions(output_file):
 
     # Open output file in write mode
     with open(output_file, 'w') as txt_file:
+        question_count = 0  # Counter for level 5 questions
+
         # Loop through each JSON file in sorted order
         for i, filename in enumerate(json_files, start=1):
+            if question_count >= 1000:  # Stop after 25 questions
+                break
+            
             # Read JSON file
             with open(filename, 'r') as json_file:
                 data = json.load(json_file)
@@ -25,8 +30,9 @@ def savequestions(output_file):
                 
                 # Write problem and solution in the specified format
                 txt_file.write(f"Q{i} - {problem}\nA{i} - {solution}\n\n")
+                question_count += 1  # Increment count for level 5 questions
                 
-    print(f"All eligible questions and solutions saved to {output_file}")
+    print(f"First 25 eligible questions and solutions saved to {output_file}")
 
 # Run the function
 savequestions('Alg-Nshot2.txt')
