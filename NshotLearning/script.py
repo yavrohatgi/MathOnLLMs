@@ -145,7 +145,7 @@ def ask_gpt_and_check_answers(test_data, use_nshot_learning, reasoning_type, fil
     }
 
     messages = [system_message, {"role": "user", "content": prompt}]
-    max_tokens = 700 if use_nshot_learning else 500
+    max_tokens = 700 if use_nshot_learning else 600
 
     try:
         response = client.chat.completions.create(
@@ -271,7 +271,7 @@ def process_all_questions(file_names, folder_path, n_shot_content):
     plot_moving_average_comparison(nshot_results, normal_results, window_size=5)
     plot_cumulative_accuracy(nshot_results, normal_results)
 
-def find_files(directory, limit=1000):
+def find_files(directory, limit=474):
     file_names = []
 
     for root, dirs, files in os.walk(directory):
@@ -284,7 +284,7 @@ def find_files(directory, limit=1000):
 
 # Main function to load data, process questions, and compare results
 def main():
-    folder_path = os.path.join("..", "tests", "test-algebra")
+    folder_path = os.path.join("..", "tests", "test-probability")
     # Set the limit on the number of files to process
     file_names = find_files(folder_path)
 
