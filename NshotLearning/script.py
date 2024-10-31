@@ -271,7 +271,7 @@ def process_all_questions(file_names, folder_path, n_shot_content):
     plot_moving_average_comparison(nshot_results, normal_results, window_size=5)
     plot_cumulative_accuracy(nshot_results, normal_results)
 
-def find_files(directory, limit=200):
+def find_files(directory, limit=150):
     file_names = []
 
     for root, dirs, files in os.walk(directory):
@@ -284,11 +284,11 @@ def find_files(directory, limit=200):
 
 # Main function to load data, process questions, and compare results
 def main():
-    folder_path = os.path.join("..", "tests", "test-algebra")
+    folder_path = os.path.join("..", "tests", "test-numbertheory")
     # Set the limit on the number of files to process
     file_names = find_files(folder_path)
 
-    n_shot_file_path = "Algebra-Nshot2.txt"  # Path to the N-shot learning file
+    n_shot_file_path = "Num-Nshot.txt"  # Path to the N-shot learning file
     n_shot_content = load_n_shot_content(n_shot_file_path)
 
     # Create a fresh log file for this run

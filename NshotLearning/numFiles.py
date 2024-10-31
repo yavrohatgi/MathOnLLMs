@@ -12,6 +12,6 @@ def find_files(directory, limit=1000):
     return file_names
 
 
-folder_path = os.path.join("..", "tests", "test-probability")
+folder_path = os.path.join("..", "tests", "test-numbertheory")
 file_names = find_files(folder_path)
 print(len(file_names))

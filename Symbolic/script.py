@@ -191,8 +191,8 @@ def plot_cumulative_accuracy(symbolic_results, normal_results):
 
 # Main function to load data, process questions, and compare results
 def main():
-    folder_path = os.path.join("..", "tests", "test-probability")
-    file_names = find_files(folder_path, 1000) # set limit (number of files)
+    folder_path = os.path.join("..", "tests", "test-algebra")
+    file_names = find_files(folder_path, 500) # set limit (number of files)
 
     symbolic_results, normal_results = [], []
     symbolic_correct = symbolic_total = normal_correct = normal_total = 0
