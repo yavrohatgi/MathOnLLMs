@@ -24,6 +24,9 @@ def load_n_shot_content(file_path):
 
 # Load test data from JSON file
 def load_test_data(file_path):
+    if not file_path.endswith('.json'):
+        print(f"Skipping non-JSON file: {file_path}")
+        return None
     try:
         with open(file_path, 'r') as file:
             return json.load(file)

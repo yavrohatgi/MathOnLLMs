@@ -3,6 +3,9 @@ import json
 
 # Function to load test data from JSON file and identify encoding issues
 def load_test_data(file_path):
+    if not file_path.endswith('.json'):
+        print(f"Skipping non-JSON file: {file_path}")
+        return None
     try:
         print(f"Attempting to load file: {file_path}")
         with open(file_path, 'r', encoding='ISO-8859-1') as file:  # Using forgiving encoding to catch issues
