@@ -288,7 +288,7 @@ def main():
     # Set the limit on the number of files to process
     file_names = find_files(folder_path)
 
-    n_shot_file_path = "Num-Nshot.txt"  # Path to the N-shot learning file
+    n_shot_file_path = "Numtheory-Nshot2.txt"  # Path to the N-shot learning file
     n_shot_content = load_n_shot_content(n_shot_file_path)
 
     # Create a fresh log file for this run
