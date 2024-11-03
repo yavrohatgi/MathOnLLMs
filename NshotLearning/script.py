@@ -1,7 +1,7 @@
-# Set up OpenAI API key
+# dependencies: os, re, openai, matplotlib, json & numpy
 import os
-import openai
 import re
+import openai
 import matplotlib.pyplot as plt
 import json
 import numpy as np
@@ -10,48 +10,64 @@ import numpy as np
 api_key = os.getenv("OPENAI_API_KEY")
 client = openai.OpenAI(api_key=api_key)
 
-# Log file path
+# Log file output name
 log_file_path = "output.txt"
 
-# Function to load N-shot examples from text file with a forgiving encoding
 def load_n_shot_content(file_path):
+    """
+    Load N-shot learning content from a text file with a forgiving encoding.
+    input: file_path: str, path to the N-shot learning content file
+    output: str, the content of the file as a string
+    """
+    # Load the N-shot learning content from the file
     try:
         with open(file_path, 'r', encoding='ISO-8859-1') as file:
             return file.read()
+    # Handle file not found or encoding error
     except (FileNotFoundError, IOError) as e:
         print(f"Error loading N-shot learning content: {e}")
         return ""
 
-# Load test data from JSON file
 def load_test_data(file_path):
-    if not file_path.endswith('.json'):
+    """
+    Load test data from a JSON file and ignore non-JSON files.
+    input: file_path: str, path to the JSON file
+    output: dict, the loaded JSON data as a dictionary
+    """
+    # Ignore non-JSON files
+    if not file_path.endswith('.json'): 
         print(f"Skipping non-JSON file: {file_path}")
         return None
+    # Load JSON file
     try:
-        with open(file_path, 'r') as file:
+        with open(file_path, 'r') as file: 
             return json.load(file)
+    # Handle file not found or JSON decode error
     except (FileNotFoundError, json.JSONDecodeError) as e:
         print(f"Error loading {file_path}: {e}")
         return None
 
-def extract_answer_from_solution(solution_text: str):
+def extract_answer_from_solution(solution_text):
     """
     Extracts the correct answer from the solution text in the JSON file.
-    Handles nested braces in \boxed{...}.
-    Returns the answer as a string.
+    input: solution_text: str, the solution text from the JSON file
+    output: str, the extracted answer enclosed in LaTeX \\boxed{} notation
     """
     # Find the position of '\boxed{'
     start_index = solution_text.find('\\boxed{')
+
+    # If no \boxed{} found, try to extract the last numerical value
     if start_index == -1:
-        # If no \boxed{} found, try to extract the last numerical value
         match = re.findall(r"(\d+(\.\d+)?)", solution_text)
         if match:
             answer = match[-1][0]
             return answer.strip()
         print("Warning: Could not extract a valid answer from solution text.")
         return "INVALID"
+    
+    # There is \boxed{} in the solution text
+    # Start scanning from start_index + len('\\boxed{')
     else:
-        # Start scanning from start_index + len('\\boxed{')
         index = start_index + len('\\boxed{')
         brace_count = 1
         answer = ''
@@ -66,24 +82,27 @@ def extract_answer_from_solution(solution_text: str):
             index += 1
         return answer.strip()
 
-def extract_answer_from_response(response_text: str):
+def extract_answer_from_response(response_text):
     """
     Extracts the answer from the OpenAI response text.
-    Handles nested braces in \boxed{...}.
-    Returns the answer as a string.
+    input: response_text: str, the response text from the OpenAI model
+    output: str, the extracted answer enclosed in LaTeX \\boxed{} notation
     """
     # Find the position of '\boxed{'
     start_index = response_text.find('\\boxed{')
+
+    # If no \boxed{} found, try to extract the last numerical value
     if start_index == -1:
-        # If no \boxed{} found, try to extract the last numerical value
         match = re.findall(r"(\d+(\.\d+)?)", response_text)
         if match:
             answer = match[-1][0]
             return answer.strip()
         print("Warning: Could not extract a valid answer from model response.")
         return "INVALID"
+
+    # There is \boxed{} in the solution text
+    # Start scanning from start_index + len('\\boxed{')
     else:
-        # Start scanning from start_index + len('\\boxed{')
         index = start_index + len('\\boxed{')
         brace_count = 1
         answer = ''
@@ -98,8 +117,13 @@ def extract_answer_from_response(response_text: str):
             index += 1
         return answer.strip()
 
-# Function to convert an answer string to a numerical value if possible
 def answer_to_float(answer_str):
+    """
+    Convert the answer string to a float if possible.
+    input: answer_str: str, the answer string to convert to a float
+    output: float, the numerical value of the answer, or None if not a number
+    """
+    # Try to evaluate the answer string as a mathematical expression
     try:
         if answer_str.startswith('\\frac'):
             frac_pattern = r'\\frac\{([^}]+)\}\{([^}]+)\}'
@@ -108,13 +132,25 @@ def answer_to_float(answer_str):
                 numerator = float(frac_match.group(1))
                 denominator = float(frac_match.group(2))
                 return numerator / denominator
-        else:
+        # Evaluate the expression directly if it is not a fraction
+        else: 
             return float(eval(answer_str))
-    except:
+    # Return None if the answer is not a number    
+    except: 
         return None
 
-# Function to log responses to a file
 def log_to_file(file_name, reasoning_type, problem, model_response, correct_answer, extracted_answer, result):
+    """
+    Log the model response, extracted answer, and correctness to a file.
+    input: file_name: str, the name of the file being processed
+    input: reasoning_type: str, the type of reasoning used (Normal or N-shot Learning)
+    input: problem: str, the problem text from the JSON file
+    input: model_response: str, the response from the OpenAI model
+    input: correct_answer: str, the correct answer extracted from the solution
+    input: extracted_answer: str, the answer extracted from the model response
+    input: result: bool, the correctness of the extracted answer
+    output: Write everything to the log file (output.txt), no console output
+    """
     with open(log_file_path, "a") as log_file:
         log_file.write(f"File: {file_name}, Reasoning Type: {reasoning_type}\n")
         log_file.write(f"Problem: {problem}\n")
@@ -124,12 +160,24 @@ def log_to_file(file_name, reasoning_type, problem, model_response, correct_answ
         log_file.write(f"Result: {'Correct' if result else 'Incorrect'}\n")
         log_file.write("="*60 + "\n")
 
-# Function to ask GPT, extract answers, and check correctness
+
 def ask_gpt_and_check_answers(test_data, use_nshot_learning, reasoning_type, file_name, n_shot_content=None):
+    """
+    Ask the GPT model a question via its API and check the correctness of the answer.
+    input: test_data: dict, the test data dictionary from the JSON file
+    input: use_nshot_learning: bool, whether to use N-shot learning examples
+    input: reasoning_type: str, the type of reasoning used (Normal or N-shot Learning)
+    input: file_name: str, the name of the file being processed
+    input: n_shot_content: str, the N-shot learning content to use
+    output: int, the correctness of the extracted answer (1 for correct, 0 for incorrect)
+    output: int, the total number of questions processed
+    output: list, the list of correctness results for each question
+    """
+
     problem = test_data.get("problem", "No problem found")
     solution = test_data.get("solution", "No solution found")
 
-    # Extract the correct answer from the solution
+    # Extract the correct answer from the solution JSON file
     correct_answer = extract_answer_from_solution(solution)
 
     # Prepare the prompt, adding N-shot examples only for N-shot learning
@@ -138,6 +186,7 @@ def ask_gpt_and_check_answers(test_data, use_nshot_learning, reasoning_type, fil
     else:
         prompt = f"{problem}\nProvide the final answer enclosed in LaTeX \\boxed{{}} notation."
 
+    # Prepare the system message based on the reasoning type 
     system_message = {
         "role": "system",
         "content": (
@@ -147,45 +196,54 @@ def ask_gpt_and_check_answers(test_data, use_nshot_learning, reasoning_type, fil
         )
     }
 
+    # Send the prompt to the GPT model and get the response
     messages = [system_message, {"role": "user", "content": prompt}]
-    max_tokens = 700 if use_nshot_learning else 600
+    # more tokens for N-shot learning (since we send the examples)
+    max_tokens = 700 if use_nshot_learning else 600 
 
     try:
+        # send everything to the model
         response = client.chat.completions.create(
-            model="gpt-4o-mini",  # Use the model you have access to
+            model="gpt-4o-mini", # 4o-mini MODEL 
             messages=messages,
             max_tokens=max_tokens,
             temperature=0.0
         )
 
-        model_response = response.choices[0].message.content.strip()
+        model_response = response.choices[0].message.content.strip() # remove extra stuff
+        # Extract the answer from the model response
         extracted_answer = extract_answer_from_response(model_response)
 
-        # Convert answers to numerical values if possible
+        # Convert answers to numerical values
         correct_value = answer_to_float(correct_answer)
         extracted_value = answer_to_float(extracted_answer)
 
         # Compare answers
         if correct_value is not None and extracted_value is not None:
-            # Compare numerical values with a tolerance
-            is_correct = abs(correct_value - extracted_value) < 1e-6
+            is_correct = abs(correct_value - extracted_value) < 1e-6 # small tolerance for floats
         else:
-            # Compare the strings directly
-            is_correct = extracted_answer == correct_answer
+            is_correct = extracted_answer == correct_answer # strings should be exactly the same
 
-        result = int(is_correct)
+        result = int(is_correct) # 1 for correct, 0 for incorrect
 
-        # Log model response, extracted answer, and correctness to the file
+        # log to file
         log_to_file(file_name, reasoning_type, problem, model_response, correct_answer, extracted_answer, result)
-
         return result, 1, [result]
 
+    # Handle exceptions and log the error
     except Exception as e:
         log_to_file(file_name, reasoning_type, problem, f"Error: {e}", correct_answer, "INVALID", False)
         return 0, 1, [0]
 
-# Function to plot the moving average comparison
 def plot_moving_average_comparison(nshot_results, normal_results, window_size=5):
+    """
+    Plot the moving average comparison of N-shot learning and normal reasoning.
+    input: nshot_results: list, the list of correctness results for N-shot learning
+    input: normal_results: list, the list of correctness results for normal reasoning
+    input: window_size: int, the size of the moving average window
+    output: Display the plot of moving average comparison
+    """
+    # Calculate the number of questions and the question indices
     num_questions = len(nshot_results)
     question_indices = np.arange(1, num_questions + 1)
 
@@ -193,12 +251,14 @@ def plot_moving_average_comparison(nshot_results, normal_results, window_size=5)
     nshot_moving_avg = np.convolve(nshot_results, np.ones(window_size) / window_size, mode='valid')
     normal_moving_avg = np.convolve(normal_results, np.ones(window_size) / window_size, mode='valid')
 
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(10, 6)) # resize
+    # Plot the moving averages For N-shot and Normal Reasoning
     plt.plot(question_indices[:len(nshot_moving_avg)], nshot_moving_avg, 
              label=f'N-shot Learning (Moving Avg, window={window_size})', color='green', linestyle='-', marker='o', alpha=0.7)
     plt.plot(question_indices[:len(normal_moving_avg)], normal_moving_avg, 
              label=f'Normal Reasoning (Moving Avg, window={window_size})', color='blue', linestyle='-', marker='x', alpha=0.7)
 
+    # Make the plot look better
     plt.ylim(0, 1)
     plt.xlim(1, num_questions)
     plt.xlabel('Question Number')
@@ -209,8 +269,15 @@ def plot_moving_average_comparison(nshot_results, normal_results, window_size=5)
     plt.tight_layout()
     plt.show()
 
-# Function to plot cumulative accuracy
+
 def plot_cumulative_accuracy(nshot_results, normal_results):
+    """
+    Plot the cumulative accuracy of N-shot learning and normal reasoning.
+    input: nshot_results: list, the list of correctness results for N-shot learning
+    input: normal_results: list, the list of correctness results for normal reasoning
+    output: Display the plot of cumulative accuracy comparison
+    """
+    # Calculate the number of questions and the question indices
     num_questions = len(nshot_results)
     question_indices = np.arange(1, num_questions + 1)
 
@@ -218,14 +285,15 @@ def plot_cumulative_accuracy(nshot_results, normal_results):
     nshot_cumulative_accuracy = np.cumsum(nshot_results) / question_indices
     normal_cumulative_accuracy = np.cumsum(normal_results) / question_indices
 
-    # Plotting the cumulative accuracy
-    plt.figure(figsize=(10, 6))
+    
+    plt.figure(figsize=(10, 6)) # resize
+    # Plot the cumulative accuracy For N-shot and Normal Reasoning
     plt.plot(question_indices, nshot_cumulative_accuracy, 
              label='N-shot Learning (Cumulative Accuracy)', color='green', linestyle='-', linewidth=3)
     plt.plot(question_indices, normal_cumulative_accuracy, 
              label='Normal Reasoning (Cumulative Accuracy)', color='blue', linestyle='-', linewidth=3)
 
-    # Adjust labels and limits
+    # Make the plot look better
     plt.ylim(0, 1)
     plt.xlim(1, num_questions)
     plt.xlabel('Question Number')
@@ -236,8 +304,16 @@ def plot_cumulative_accuracy(nshot_results, normal_results):
     plt.tight_layout()
     plt.show()
 
-# Function to process questions with normal reasoning first, then with N-shot
 def process_all_questions(file_names, folder_path, n_shot_content):
+    """
+    Process all questions in the test files with normal and N-shot reasoning.
+    input: file_names: list, the list of file names to process
+    input: folder_path: str, the path to the folder containing the test files
+    input: n_shot_content: str, the N-shot learning content to use
+    output: Print the accuracy of N-shot learning and normal reasoning
+    output: Display the plots of moving average and cumulative accuracy comparison
+    """
+    # Initialize variables for results
     nshot_results, normal_results = [], []
     nshot_correct = nshot_total = normal_correct = normal_total = 0
 
@@ -266,35 +342,34 @@ def process_all_questions(file_names, folder_path, n_shot_content):
     # Calculate and print accuracy
     nshot_accuracy = (nshot_correct / nshot_total) * 100 if nshot_total else 0
     normal_accuracy = (normal_correct / normal_total) * 100 if normal_total else 0
-
     print(f"N-shot Learning Accuracy: {nshot_accuracy:.2f}%")
     print(f"Normal Reasoning Accuracy: {normal_accuracy:.2f}%")
 
-    # Plot
+    # Plot both moving average and cumulative accuracy comparison
     plot_moving_average_comparison(nshot_results, normal_results, window_size=5)
     plot_cumulative_accuracy(nshot_results, normal_results)
 
 def find_files(directory, limit=150):
+    """
+    Find files in the directory up to the specified limit.
+    input: directory: str, the directory to search for files
+    input: limit: int, the maximum number of files to find
+    output: list, the list of file names found in the directory
+    """
     file_names = []
-
     for root, dirs, files in os.walk(directory):
         for file in files:
             if len(file_names) >= limit:
                 return file_names
             file_names.append(file)
-
     return file_names
 
-# Main function to load data, process questions, and compare results
 def main():
-    folder_path = os.path.join("..", "tests", "test-numbertheory")
-    # Set the limit on the number of files to process
-    file_names = find_files(folder_path)
+    folder_path = os.path.join("..", "tests", "test-numbertheory")  # change accordingly
+    file_names = find_files(folder_path) # Get the files in the folder
+    n_shot_content = load_n_shot_content("Numtheory-Nshot2.txt") # Load N-shot examples
 
-    n_shot_file_path = "Numtheory-Nshot2.txt"  # Path to the N-shot learning file
-    n_shot_content = load_n_shot_content(n_shot_file_path)
-
-    # Create a fresh log file for this run
+    # Create a new log file
     with open(log_file_path, "w") as log_file:
         log_file.write("GPT-4 Model Responses and Extracted Answers\n")
         log_file.write("=" * 60 + "\n")
@@ -303,4 +378,4 @@ def main():
     process_all_questions(file_names, folder_path, n_shot_content)
 
 if __name__ == "__main__":
-    main()
+    main() # call it
