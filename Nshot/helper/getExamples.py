@@ -1,5 +1,5 @@
 # Define the input and output file paths
-input_file_path = 'Numtheory-Nshot2.txt'  # replace with the actual path if different
+input_file_path = 'Algebra-Nshot2.txt'  # replace with the actual path if different
 output_file_path = 'try.txt'
 
 # Read the file content
