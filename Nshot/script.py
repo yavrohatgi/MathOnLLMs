@@ -199,7 +199,7 @@ def ask_gpt_and_check_answers(test_data, use_nshot_learning, reasoning_type, fil
     # Send the prompt to the GPT model and get the response
     messages = [system_message, {"role": "user", "content": prompt}]
     # more tokens for N-shot learning (since we send the examples)
-    max_tokens = 700 if use_nshot_learning else 600 
+    max_tokens = 700 if use_nshot_learning else 500 
 
     try:
         # send everything to the model
@@ -349,7 +349,7 @@ def process_all_questions(file_names, folder_path, n_shot_content):
     plot_moving_average_comparison(nshot_results, normal_results, window_size=5)
     plot_cumulative_accuracy(nshot_results, normal_results)
 
-def find_files(directory, limit=150):
+def find_files(directory, limit=100):
     """
     Find files in the directory up to the specified limit.
     input: directory: str, the directory to search for files
@@ -367,7 +367,7 @@ def find_files(directory, limit=150):
 def main():
     folder_path = os.path.join("..", "tests", "test-numbertheory")  # change accordingly
     file_names = find_files(folder_path) # Get the files in the folder
-    n_shot_content = load_n_shot_content("Numtheory-Nshot2.txt") # Load N-shot examples
+    n_shot_content = load_n_shot_content("book.txt") # Load N-shot examples
 
     # Create a new log file
     with open(log_file_path, "w") as log_file:
