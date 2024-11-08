@@ -230,9 +230,9 @@ def process_all_questions(file_names, folder_path, n_shot_content):
 
             # Update accuracy and example count based on performance
             current_accuracy = (nshot_correct / nshot_total) * 100 if nshot_total else 0
-            if current_accuracy < 75 and example_count < max_example_count:
+            if current_accuracy < 60 and example_count < max_example_count:
                 example_count += 1
-                print(f"Accuracy below 75%. Increasing N-shot examples to {example_count}.")
+                print(f"Accuracy below 60%. Increasing N-shot examples to {example_count}.")
             elif example_count == max_example_count:
                 print("Reached the maximum of 18 examples. Stopping example increase.")
 
